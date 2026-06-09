@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Env / secrets
+.env
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Tooling
+.claude/
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Vector indexes
+data/index/
+chroma_db/
