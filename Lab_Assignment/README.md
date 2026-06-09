@@ -663,4 +663,4 @@ pytest tests/test_individual.py::TestTask5 -v
 - [PageIndex](https://github.com/VectifyAI/PageIndex) — Vectorless RAG
 - [Jina Reranker](https://jina.ai/reranker/) — Cross-encoder reranking API
 - Liu et al. (2023), *Lost in the Middle: How Language Models Use Long Contexts*
-# Day08_RAG_pipeline_cohort2
+# Lab Assignment
