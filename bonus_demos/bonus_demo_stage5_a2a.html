@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A Stage 5: Distributed Microservices Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface: #151e32;
+            --surface-glass: rgba(21, 30, 50, 0.7);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            
+            --primary: #0ea5e9;
+            --primary-glow: rgba(14, 165, 233, 0.5);
+            --secondary: #8b5cf6;
+            --secondary-glow: rgba(139, 92, 246, 0.5);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.5);
+            --registry: #f43f5e;
+            --registry-glow: rgba(244, 63, 94, 0.5);
+            --warning: #f59e0b;
+            --warning-glow: rgba(245, 158, 11, 0.5);
+            
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.1), transparent 30%),
+                radial-gradient(circle at 90% 80%, rgba(244, 63, 94, 0.1), transparent 30%);
+        }
+
+        .header {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--surface-glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-glass);
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #f43f5e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            padding: 2rem;
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Left Panel - Chat/Input */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 380px;
+        }
+
+        .chat-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-glass);
+            background: rgba(0,0,0,0.2);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary), #0284c7);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.system {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-bottom-left-radius: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .chat-input-container {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-glass);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .btn-send {
+            margin-top: 1rem;
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--registry));
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-send:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px var(--primary-glow);
+        }
+        
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Right Panel - Architecture Graph */
+        .graph-panel {
+            flex: 2;
+            position: relative;
+            background: var(--surface-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .graph-container {
+            flex: 1;
+            display: grid;
+            align-content: center;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 4rem 2rem;
+            width: 100%;
+            padding: 3rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .node-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Positions */
+        .node-client { grid-column: 2; grid-row: 1; }
+        .node-registry { grid-column: 3; grid-row: 1; justify-self: end; }
+        .node-law { grid-column: 2; grid-row: 2; }
+        .node-tax { grid-column: 1; grid-row: 3; }
+        .node-compliance { grid-column: 2; grid-row: 3; }
+        .node-privacy { grid-column: 3; grid-row: 3; }
+
+        .server-node {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+            border: 1px solid var(--border-glass);
+            border-top: 3px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 1.25rem 1rem;
+            width: 200px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        /* Port styling for microservices */
+        .server-node::before {
+            content: '';
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 2px;
+            background: var(--border-glass);
+            border-radius: 2px;
+        }
+        
+        .server-node::after {
+            content: '';
+            position: absolute;
+            bottom: 16px;
+            left: 20px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 5px var(--success);
+        }
+
+        .port-label {
+            position: absolute;
+            bottom: -12px;
+            right: 15px;
+            background: var(--bg-color);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-glass);
+            font-size: 0.7rem;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .server-node h3 {
+            font-size: 1rem;
+            margin-bottom: 0.2rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .server-node .status {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            height: 1rem;
+        }
+
+        .server-node .icon {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        /* Microservice States */
+        .server-node.active-http {
+            border-top-color: var(--primary);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(14, 165, 233, 0.2);
+        }
+        .server-node.active-http::after {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            animation: blink 1s infinite;
+        }
+        
+        .server-node.active-registry {
+            border-top-color: var(--registry);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(244, 63, 94, 0.2);
+        }
+        .server-node.active-registry::after {
+            background: var(--registry);
+            box-shadow: 0 0 8px var(--registry);
+            animation: blink 0.5s infinite;
+        }
+        
+        .server-node.active-parallel {
+            border-top-color: var(--warning);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(245, 158, 11, 0.2);
+        }
+        .server-node.active-parallel::after {
+            background: var(--warning);
+            box-shadow: 0 0 8px var(--warning);
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* SVG Connections */
+        .svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        path.connection {
+            fill: none;
+            stroke: var(--border-glass);
+            stroke-width: 2.5;
+            transition: all 0.3s ease;
+            stroke-dasharray: 6 6;
+        }
+
+        path.connection.active-http {
+            stroke: var(--primary);
+            stroke-dasharray: 0;
+            filter: drop-shadow(0 0 5px var(--primary));
+        }
+
+        path.connection.active-registry {
+            stroke: var(--registry);
+            stroke-dasharray: 0;
+            filter: drop-shadow(0 0 5px var(--registry));
+        }
+        
+        path.connection.active-parallel {
+            stroke: var(--warning);
+            stroke-dasharray: 0;
+            filter: drop-shadow(0 0 5px var(--warning));
+        }
+
+        /* HTTP Request Packet Animation */
+        .http-packet {
+            position: absolute;
+            padding: 4px 8px;
+            background: rgba(14, 165, 233, 0.9);
+            color: white;
+            font-size: 0.65rem;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--primary);
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .http-packet.registry {
+            background: rgba(244, 63, 94, 0.9);
+            box-shadow: 0 0 10px var(--registry);
+        }
+
+        .http-packet.parallel {
+            background: rgba(245, 158, 11, 0.9);
+            box-shadow: 0 0 10px var(--warning);
+        }
+
+        /* Terminal output */
+        .terminal {
+            margin: 0 15px 15px 15px;
+            height: 160px;
+            background: rgba(10, 15, 25, 0.85);
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            overflow-y: auto;
+            color: #93c5fd;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+        
+        .terminal p {
+            margin-bottom: 0.3rem;
+            line-height: 1.4;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 0.2rem;
+        }
+        
+        .terminal .log-time { color: #64748b; margin-right: 0.5rem; }
+        .terminal .log-ip { color: #34d399; margin-right: 0.5rem; }
+        .terminal .log-method { color: #f472b6; margin-right: 0.3rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Stage 5: Distributed Microservices (A2A)</h1>
+        <p>Simulation of Agent-to-Agent communication over HTTP REST APIs with Service Registry</p>
+    </div>
+
+    <div class="container">
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <span>💻 Test Client</span>
+            </div>
+            <div class="chat-body" id="chatBody">
+                <div class="message system">
+                    All A2A Microservices are online.<br>Waiting for HTTP POST payload...
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <textarea class="chat-input" id="userInput" rows="3" placeholder="Gửi request đến Law Agent..."></textarea>
+                <button class="btn-send" id="sendBtn" onclick="startSimulation()">Send HTTP POST</button>
+            </div>
+        </div>
+
+        <!-- Graph Panel -->
+        <div class="graph-panel" id="graphPanel">
+            <svg class="svg-layer" id="svgLayer"></svg>
+            
+            <div class="graph-container">
+                
+                <div class="node-wrapper node-client" id="w-client">
+                    <div class="server-node" id="node-client" style="border-top-color: #94a3b8;">
+                        <span class="icon">📱</span>
+                        <h3>Test Client</h3>
+                        <div class="status" id="status-client">Waiting...</div>
+                        <div class="port-label">Client</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-registry" id="w-registry">
+                    <div class="server-node" id="node-registry" style="border-top-color: var(--registry);">
+                        <span class="icon">🗄️</span>
+                        <h3>Registry</h3>
+                        <div class="status" id="status-registry">Service Discovery</div>
+                        <div class="port-label">:10000</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-law" id="w-law">
+                    <div class="server-node" id="node-law" style="border-top-color: var(--primary);">
+                        <span class="icon">⚖️</span>
+                        <h3>Law Agent Server</h3>
+                        <div class="status" id="status-law">Orchestrator</div>
+                        <div class="port-label">:10001</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-tax" id="w-tax">
+                    <div class="server-node" id="node-tax">
+                        <span class="icon">💰</span>
+                        <h3>Tax Agent Server</h3>
+                        <div class="status" id="status-tax">Idle</div>
+                        <div class="port-label">:10002</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-compliance" id="w-compliance">
+                    <div class="server-node" id="node-compliance">
+                        <span class="icon">✅</span>
+                        <h3>Compliance Server</h3>
+                        <div class="status" id="status-compliance">Idle</div>
+                        <div class="port-label">:10003</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-privacy" id="w-privacy">
+                    <div class="server-node" id="node-privacy">
+                        <span class="icon">🔒</span>
+                        <h3>Privacy Server</h3>
+                        <div class="status" id="status-privacy">Idle</div>
+                        <div class="port-label">:10004</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="terminal" id="terminal">
+                <p><span class="log-time">[Startup]</span> <span class="log-ip">127.0.0.1</span> Registry running on http://localhost:10000</p>
+                <p><span class="log-time">[Startup]</span> <span class="log-ip">127.0.0.1</span> Law Agent registered on port 10001</p>
+                <p><span class="log-time">[Startup]</span> <span class="log-ip">127.0.0.1</span> Tax Agent registered on port 10002</p>
+                <p><span class="log-time">[Startup]</span> <span class="log-ip">127.0.0.1</span> Compliance Agent registered on port 10003</p>
+                <p><span class="log-time">[Startup]</span> <span class="log-ip">127.0.0.1</span> Privacy Agent registered on port 10004</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const paths = {};
+        
+        function drawConnections() {
+            const svg = document.getElementById('svgLayer');
+            svg.innerHTML = '';
+            
+            const createPath = (id, startId, endId, isCurved = false) => {
+                const startNode = document.getElementById(startId);
+                const endNode = document.getElementById(endId);
+                
+                const sRect = startNode.getBoundingClientRect();
+                const eRect = endNode.getBoundingClientRect();
+                const svgRect = svg.getBoundingClientRect();
+                
+                const startX = sRect.left + sRect.width / 2 - svgRect.left;
+                const startY = sRect.top + sRect.height / 2 - svgRect.top;
+                
+                const endX = eRect.left + eRect.width / 2 - svgRect.left;
+                const endY = eRect.top + eRect.height / 2 - svgRect.top;
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                let d = `M ${startX} ${startY} L ${endX} ${endY}`;
+                
+                if (isCurved) {
+                    d = `M ${startX} ${startY} C ${startX + 50} ${startY - 50}, ${endX - 50} ${endY + 50}, ${endX} ${endY}`;
+                }
+                
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'connection');
+                path.setAttribute('id', id);
+                svg.appendChild(path);
+                
+                // For animating packets along the path
+                const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                
+                paths[id] = { path, startX, startY, endX, endY, d, length };
+            };
+
+            createPath('path-client-law', 'w-client', 'w-law');
+            createPath('path-law-registry', 'w-law', 'w-registry', true);
+            createPath('path-law-tax', 'w-law', 'w-tax');
+            createPath('path-law-compliance', 'w-law', 'w-compliance');
+            createPath('path-law-privacy', 'w-law', 'w-privacy');
+        }
+
+        window.addEventListener('resize', drawConnections);
+        setTimeout(drawConnections, 100);
+
+        function logTerminal(ip, method, url, message) {
+            const terminal = document.getElementById('terminal');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+            const p = document.createElement('p');
+            p.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-ip">${ip}</span> <span class="log-method">${method}</span> ${url} - ${message}`;
+            terminal.appendChild(p);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function addChatMessage(content, isUser = false) {
+            const body = document.getElementById('chatBody');
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user' : 'system'}`;
+            div.innerHTML = content.replace(/\n/g, '<br>');
+            body.appendChild(div);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function setNodeState(nodeId, state, statusText) {
+            const node = document.getElementById(`node-${nodeId}`);
+            const status = document.getElementById(`status-${nodeId}`);
+            node.className = 'server-node ' + state;
+            if (statusText) status.innerText = statusText;
+        }
+
+        function setPathState(pathId, state) {
+            const path = document.getElementById(pathId);
+            if (path) path.className.baseVal = 'connection ' + state;
+        }
+
+        async function sendHttpPacket(pathId, method, endpoint, typeClass = 'active-http', duration = 800) {
+            const pathData = paths[pathId];
+            if (!pathData) return;
+
+            const packet = document.createElement('div');
+            packet.className = `http-packet ${typeClass}`;
+            packet.innerText = `${method} ${endpoint}`;
+            document.getElementById('graphPanel').appendChild(packet);
+            
+            // Animation logic from Start to End
+            packet.style.left = `${pathData.startX}px`;
+            packet.style.top = `${pathData.startY}px`;
+            packet.style.transition = `all ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+            
+            // Trigger reflow
+            void packet.offsetWidth;
+            
+            packet.style.opacity = '1';
+            packet.style.left = `${pathData.endX}px`;
+            packet.style.top = `${pathData.endY}px`;
+            
+            setPathState(pathId, typeClass);
+            
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    if(packet.parentNode) packet.parentNode.removeChild(packet);
+                    setPathState(pathId, '');
+                    resolve();
+                }, duration);
+            });
+        }
+        
+        async function sendHttpPacketReverse(pathId, statusCode, typeClass = 'active-http', duration = 800) {
+            const pathData = paths[pathId];
+            if (!pathData) return;
+
+            const packet = document.createElement('div');
+            packet.className = `http-packet ${typeClass}`;
+            packet.innerText = `HTTP ${statusCode}`;
+            document.getElementById('graphPanel').appendChild(packet);
+            
+            packet.style.left = `${pathData.endX}px`;
+            packet.style.top = `${pathData.endY}px`;
+            packet.style.transition = `all ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+            
+            void packet.offsetWidth;
+            
+            packet.style.opacity = '1';
+            packet.style.left = `${pathData.startX}px`;
+            packet.style.top = `${pathData.startY}px`;
+            
+            setPathState(pathId, typeClass);
+            
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    if(packet.parentNode) packet.parentNode.removeChild(packet);
+                    setPathState(pathId, '');
+                    resolve();
+                }, duration);
+            });
+        }
+
+        async function startSimulation() {
+            const input = document.getElementById('userInput');
+            const btn = document.getElementById('sendBtn');
+            const query = input.value.trim() || "Nếu công ty rò rỉ dữ liệu, hậu quả pháp lý là gì?";
+            
+            // Reset UI
+            input.value = '';
+            btn.disabled = true;
+            document.querySelectorAll('.server-node').forEach(n => n.className = 'server-node');
+            document.querySelectorAll('.connection').forEach(n => n.className.baseVal = 'connection');
+            document.getElementById('terminal').innerHTML = '';
+            
+            addChatMessage(query, true);
+
+            // 1. Client -> Law Agent
+            logTerminal('Client', 'POST', 'http://localhost:10001/invoke', 'Sending query payload');
+            setNodeState('client', 'active-http', 'Sending Req...');
+            await sendHttpPacket('path-client-law', 'POST', '/invoke', 'active-http');
+            setNodeState('client', '', 'Waiting');
+            setNodeState('law', 'active-http', 'Processing Graph...');
+            
+            logTerminal('LawAgent:10001', 'INFO', 'GraphRunner', 'Step: analyze_law completed');
+            await sleep(1500);
+
+            // 2. Law Agent -> Registry (Discovery)
+            logTerminal('LawAgent:10001', 'GET', 'http://localhost:10000/discover', 'Querying required services');
+            setNodeState('law', 'active-registry', 'Lookup Agents');
+            setNodeState('registry', 'active-registry', 'Querying DB');
+            await sendHttpPacket('path-law-registry', 'GET', '/discover', 'registry');
+            
+            logTerminal('Registry:10000', '200 OK', 'Response', '{"tax": 10002, "compliance": 10003, "privacy": 10004}');
+            await sendHttpPacketReverse('path-law-registry', '200 OK', 'registry');
+            setNodeState('registry', '', 'Idle');
+
+            // 3. Parallel A2A calls to Sub-Agents
+            logTerminal('LawAgent:10001', 'INFO', 'A2A Client', 'Dispatching parallel HTTP requests');
+            setNodeState('law', 'active-parallel', 'Awaiting Sub-agents');
+            
+            const p1 = sendHttpPacket('path-law-tax', 'POST', '/invoke', 'parallel', 1000);
+            const p2 = sendHttpPacket('path-law-compliance', 'POST', '/invoke', 'parallel', 1000);
+            const p3 = sendHttpPacket('path-law-privacy', 'POST', '/invoke', 'parallel', 1000);
+            
+            await Promise.all([p1, p2, p3]);
+
+            setNodeState('tax', 'active-parallel', 'LLM Generating...');
+            setNodeState('compliance', 'active-parallel', 'LLM Generating...');
+            setNodeState('privacy', 'active-parallel', 'LLM Generating...');
+            
+            logTerminal('TaxAgent:10002', 'POST', '/invoke', 'Processing query...');
+            logTerminal('CompAgent:10003', 'POST', '/invoke', 'Processing query...');
+            logTerminal('PrivAgent:10004', 'POST', '/invoke', 'Processing query...');
+
+            // Sub-agents responding back
+            const r1 = (async () => {
+                await sleep(2000);
+                logTerminal('PrivAgent:10004', '200 OK', 'Response', 'Sending privacy analysis');
+                setNodeState('privacy', '', 'Idle');
+                await sendHttpPacketReverse('path-law-privacy', '200 OK', 'parallel');
+            })();
+            
+            const r2 = (async () => {
+                await sleep(2500);
+                logTerminal('TaxAgent:10002', '200 OK', 'Response', 'Sending tax analysis');
+                setNodeState('tax', '', 'Idle');
+                await sendHttpPacketReverse('path-law-tax', '200 OK', 'parallel');
+            })();
+
+            const r3 = (async () => {
+                await sleep(3200);
+                logTerminal('CompAgent:10003', '200 OK', 'Response', 'Sending compliance analysis');
+                setNodeState('compliance', '', 'Idle');
+                await sendHttpPacketReverse('path-law-compliance', '200 OK', 'parallel');
+            })();
+
+            await Promise.all([r1, r2, r3]);
+
+            // 4. Law Agent Aggregating
+            setNodeState('law', 'active-http', 'Aggregating Results');
+            logTerminal('LawAgent:10001', 'INFO', 'GraphRunner', 'Step: aggregate_results running');
+            await sleep(2500);
+
+            // 5. Law Agent -> Client
+            logTerminal('LawAgent:10001', '200 OK', 'Response', 'Sending final answer to client');
+            setNodeState('law', '', 'Idle');
+            await sendHttpPacketReverse('path-client-law', '200 OK', 'active-http');
+            
+            // --- FINISH ---
+            btn.disabled = false;
+            
+            const finalReport = `<strong>[STAGE 5 - A2A Distributed Response]</strong><br><br>
+            Phân tích từ các Microservices độc lập đã được Law Agent tổng hợp:<br>
+            - <strong>Port 10002 (Tax):</strong> Đã tra cứu dữ liệu thuế.<br>
+            - <strong>Port 10003 (Compliance):</strong> Đã tra cứu SOX/SEC.<br>
+            - <strong>Port 10004 (Privacy):</strong> Đã áp dụng GDPR.`;
+            
+            addChatMessage(finalReport, false);
+            logTerminal('Client', 'INFO', 'UI', 'Rendered final response.');
+        }
+    </script>
+</body>
+</html>

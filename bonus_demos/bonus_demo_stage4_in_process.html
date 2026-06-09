@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A Multi-Agent System - Live Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface: #1e293b;
+            --surface-glass: rgba(30, 41, 59, 0.7);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --secondary: #8b5cf6;
+            --secondary-glow: rgba(139, 92, 246, 0.5);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.5);
+            --warning: #f59e0b;
+            --warning-glow: rgba(245, 158, 11, 0.5);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.5);
+            
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem;
+            background: var(--surface-glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-glass);
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            padding: 2rem;
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Left Panel - Chat/Input */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+        }
+
+        .chat-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-glass);
+            background: rgba(0,0,0,0.2);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .chat-header i {
+            color: var(--primary);
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary), #2563eb);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.system {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-bottom-left-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .chat-input-container {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-glass);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .btn-send {
+            margin-top: 1rem;
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-send:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px var(--primary-glow);
+        }
+        
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Right Panel - Graph */
+        .graph-panel {
+            flex: 2;
+            position: relative;
+            background: var(--surface-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Graph Layout Grid */
+        .graph-container {
+            flex: 1;
+            align-content: center;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto auto auto;
+            gap: 3rem 2rem;
+            width: 100%;
+            padding: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .node-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Positioning the nodes */
+        .node-law { grid-column: 2; grid-row: 1; }
+        .node-router { grid-column: 2; grid-row: 2; }
+        .node-tax { grid-column: 1; grid-row: 3; }
+        .node-compliance { grid-column: 2; grid-row: 3; }
+        .node-privacy { grid-column: 3; grid-row: 3; }
+        .node-aggregate { grid-column: 2; grid-row: 4; }
+
+        .agent-node {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1.25rem;
+            width: 220px;
+            text-align: center;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(5px);
+        }
+
+        .agent-node h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .agent-node .status {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            height: 1.2rem;
+        }
+
+        .agent-node .icon {
+            font-size: 2rem;
+            margin-bottom: 0.75rem;
+            display: inline-block;
+        }
+
+        /* Node States */
+        .agent-node.active {
+            transform: scale(1.05);
+            border-color: var(--primary);
+            box-shadow: 0 0 30px var(--primary-glow), inset 0 0 10px var(--primary-glow);
+        }
+        
+        .agent-node.active-parallel {
+            transform: scale(1.05);
+            border-color: var(--warning);
+            box-shadow: 0 0 30px var(--warning-glow), inset 0 0 10px var(--warning-glow);
+        }
+
+        .agent-node.done {
+            border-color: var(--success);
+            box-shadow: 0 0 15px var(--success-glow);
+        }
+        
+        .agent-node.done .status {
+            color: var(--success);
+        }
+
+        /* Pulsing dot for active state */
+        .pulse-dot {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 15px;
+            height: 15px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            display: none;
+        }
+        
+        .active-parallel .pulse-dot {
+            background-color: var(--warning);
+        }
+
+        .agent-node.active .pulse-dot, .agent-node.active-parallel .pulse-dot {
+            display: block;
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            0% { transform: scale(1); opacity: 1; }
+            75%, 100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* SVG Connections */
+        .svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        path.connection {
+            fill: none;
+            stroke: var(--border-glass);
+            stroke-width: 3;
+            stroke-dasharray: 8 8;
+            transition: all 0.5s ease;
+        }
+
+        path.connection.active {
+            stroke: var(--primary);
+            stroke-dasharray: 0;
+            filter: drop-shadow(0 0 8px var(--primary));
+            animation: dash 1s linear infinite;
+        }
+        
+        path.connection.active-parallel {
+            stroke: var(--warning);
+            stroke-dasharray: 0;
+            filter: drop-shadow(0 0 8px var(--warning));
+            animation: dash 1s linear infinite reverse;
+        }
+
+        path.connection.done {
+            stroke: var(--success);
+            stroke-dasharray: 0;
+            filter: drop-shadow(0 0 5px var(--success-glow));
+        }
+
+        @keyframes dash {
+            to { stroke-dashoffset: -20; }
+        }
+        
+        /* Particle effects */
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 0 10px 2px rgba(255,255,255,0.8);
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        /* Terminal output */
+        .terminal {
+            margin: 0 20px 20px 20px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-y: auto;
+            color: #a7f3d0;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+        
+        .terminal p {
+            margin-bottom: 0.4rem;
+            line-height: 1.4;
+        }
+        
+        .terminal .log-time {
+            color: #94a3b8;
+            margin-right: 0.5rem;
+        }
+        
+        .terminal .log-source {
+            color: #fcd34d;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>A2A Multi-Agent Orchestration</h1>
+        <p>Live simulation of LangGraph parallel execution (Stage 4 & 5 architecture)</p>
+    </div>
+
+    <div class="container">
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <span>🤖 Customer Agent Interface</span>
+            </div>
+            <div class="chat-body" id="chatBody">
+                <div class="message system">
+                    System ready. Please enter your legal query to trigger the multi-agent orchestration.
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <textarea class="chat-input" id="userInput" rows="3" placeholder="Ví dụ: Nếu công ty bị rò rỉ dữ liệu và trốn thuế, hậu quả pháp lý là gì?"></textarea>
+                <button class="btn-send" id="sendBtn" onclick="startSimulation()">Execute Agents</button>
+            </div>
+        </div>
+
+        <!-- Graph Panel -->
+        <div class="graph-panel" id="graphPanel">
+            <svg class="svg-layer" id="svgLayer"></svg>
+            
+            <div class="graph-container">
+                
+                <!-- Level 1 -->
+                <div class="node-wrapper node-law" id="w-law">
+                    <div class="agent-node" id="node-law">
+                        <div class="pulse-dot"></div>
+                        <span class="icon">⚖️</span>
+                        <h3>Law Agent</h3>
+                        <div class="status" id="status-law">Idle</div>
+                    </div>
+                </div>
+
+                <!-- Level 2 -->
+                <div class="node-wrapper node-router" id="w-router">
+                    <div class="agent-node" id="node-router">
+                        <div class="pulse-dot"></div>
+                        <span class="icon">🔀</span>
+                        <h3>Router</h3>
+                        <div class="status" id="status-router">Idle</div>
+                    </div>
+                </div>
+
+                <!-- Level 3 (Parallel) -->
+                <div class="node-wrapper node-tax" id="w-tax">
+                    <div class="agent-node" id="node-tax">
+                        <div class="pulse-dot"></div>
+                        <span class="icon">💰</span>
+                        <h3>Tax Agent</h3>
+                        <div class="status" id="status-tax">Idle</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-compliance" id="w-compliance">
+                    <div class="agent-node" id="node-compliance">
+                        <div class="pulse-dot"></div>
+                        <span class="icon">✅</span>
+                        <h3>Compliance Agent</h3>
+                        <div class="status" id="status-compliance">Idle</div>
+                    </div>
+                </div>
+
+                <div class="node-wrapper node-privacy" id="w-privacy">
+                    <div class="agent-node" id="node-privacy">
+                        <div class="pulse-dot"></div>
+                        <span class="icon">🔒</span>
+                        <h3>Privacy Agent</h3>
+                        <div class="status" id="status-privacy">Idle</div>
+                    </div>
+                </div>
+
+                <!-- Level 4 -->
+                <div class="node-wrapper node-aggregate" id="w-aggregate">
+                    <div class="agent-node" id="node-aggregate">
+                        <div class="pulse-dot"></div>
+                        <span class="icon">📑</span>
+                        <h3>Aggregator</h3>
+                        <div class="status" id="status-aggregate">Idle</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="terminal" id="terminal">
+                <p><span class="log-time">[System]</span> A2A Registry and Services initialized on ports 10000-10103.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const paths = {};
+        
+        function drawConnections() {
+            const svg = document.getElementById('svgLayer');
+            svg.innerHTML = ''; // Clear existing
+            
+            const createPath = (id, startId, endId) => {
+                const startNode = document.getElementById(startId);
+                const endNode = document.getElementById(endId);
+                
+                const sRect = startNode.getBoundingClientRect();
+                const eRect = endNode.getBoundingClientRect();
+                const svgRect = svg.getBoundingClientRect();
+                
+                const startX = sRect.left + sRect.width / 2 - svgRect.left;
+                const startY = sRect.bottom - svgRect.top;
+                
+                const endX = eRect.left + eRect.width / 2 - svgRect.left;
+                const endY = eRect.top - svgRect.top;
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                // Create curved paths
+                const d = `M ${startX} ${startY} C ${startX} ${startY + 40}, ${endX} ${endY - 40}, ${endX} ${endY}`;
+                
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'connection');
+                path.setAttribute('id', id);
+                svg.appendChild(path);
+                paths[id] = { path, startX, startY, endX, endY, d };
+            };
+
+            createPath('path-law-router', 'w-law', 'w-router');
+            createPath('path-router-tax', 'w-router', 'w-tax');
+            createPath('path-router-compliance', 'w-router', 'w-compliance');
+            createPath('path-router-privacy', 'w-router', 'w-privacy');
+            createPath('path-tax-agg', 'w-tax', 'w-aggregate');
+            createPath('path-comp-agg', 'w-compliance', 'w-aggregate');
+            createPath('path-priv-agg', 'w-privacy', 'w-aggregate');
+        }
+
+        window.addEventListener('resize', drawConnections);
+        // Delay drawing slightly to ensure layout is complete
+        setTimeout(drawConnections, 100);
+
+        function logTerminal(source, message) {
+            const terminal = document.getElementById('terminal');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+            const p = document.createElement('p');
+            p.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-source">[${source}]</span> ${message}`;
+            terminal.appendChild(p);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function addChatMessage(content, isUser = false) {
+            const body = document.getElementById('chatBody');
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user' : 'system'}`;
+            div.innerHTML = content.replace(/\n/g, '<br>');
+            body.appendChild(div);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function setNodeState(nodeId, state, statusText) {
+            const node = document.getElementById(`node-${nodeId}`);
+            const status = document.getElementById(`status-${nodeId}`);
+            node.className = 'agent-node ' + state;
+            if (statusText) status.innerText = statusText;
+        }
+
+        function setPathState(pathId, state) {
+            const path = document.getElementById(pathId);
+            if (path) path.className.baseVal = 'connection ' + state;
+        }
+
+        async function startSimulation() {
+            const input = document.getElementById('userInput');
+            const btn = document.getElementById('sendBtn');
+            const query = input.value.trim() || "Nếu công ty bị rò rỉ dữ liệu khách hàng và trốn thuế, hậu quả là gì?";
+            
+            // Reset UI
+            input.value = '';
+            btn.disabled = true;
+            document.querySelectorAll('.agent-node').forEach(n => n.className = 'agent-node');
+            document.querySelectorAll('.status').forEach(n => n.innerText = 'Idle');
+            document.querySelectorAll('.connection').forEach(n => n.className.baseVal = 'connection');
+            document.getElementById('terminal').innerHTML = '';
+            
+            addChatMessage(query, true);
+            logTerminal('CustomerAgent', 'Received query. Dispatching to Law Agent...');
+
+            // --- STEP 1: Law Agent ---
+            await sleep(800);
+            setNodeState('law', 'active', 'Analyzing...');
+            logTerminal('LawAgent', 'Generating general legal analysis...');
+            await sleep(2500); // simulate LLM delay
+            setNodeState('law', 'done', 'Analysis Complete');
+            logTerminal('LawAgent', 'Analysis complete. 1250 chars generated.');
+
+            // --- STEP 2: Router ---
+            await sleep(500);
+            setPathState('path-law-router', 'done');
+            
+            await sleep(500);
+            setNodeState('router', 'active', 'Routing...');
+            logTerminal('Router', 'Analyzing keywords to route to specialists...');
+            await sleep(1500);
+            logTerminal('Router', 'Decision: needs_tax=True, needs_compliance=True, needs_privacy=True');
+            setNodeState('router', 'done', 'Routed to 3 agents');
+
+            // --- STEP 3: Parallel Execution (Tax, Compliance, Privacy) ---
+            await sleep(500);
+            setPathState('path-router-tax', 'active-parallel');
+            setPathState('path-router-compliance', 'active-parallel');
+            setPathState('path-router-privacy', 'active-parallel');
+
+            await sleep(500);
+            logTerminal('LangGraph', 'Dispatching Send() API for parallel execution...');
+            setNodeState('tax', 'active-parallel', 'Processing...');
+            setNodeState('compliance', 'active-parallel', 'Processing...');
+            setNodeState('privacy', 'active-parallel', 'Processing...');
+            
+            logTerminal('TaxAgent', 'Retrieving IRC penalties...');
+            logTerminal('ComplianceAgent', 'Checking SEC/SOX frameworks...');
+            logTerminal('PrivacyAgent', 'Analyzing GDPR/Data Protection laws...');
+
+            // Simulate agents finishing at slightly different times
+            const p1 = (async () => {
+                await sleep(2000);
+                setNodeState('privacy', 'done', 'Done');
+                logTerminal('PrivacyAgent', 'Finished GDPR analysis.');
+                setPathState('path-priv-agg', 'done');
+            })();
+            
+            const p2 = (async () => {
+                await sleep(2800);
+                setNodeState('tax', 'done', 'Done');
+                logTerminal('TaxAgent', 'Finished Tax evasion analysis.');
+                setPathState('path-tax-agg', 'done');
+            })();
+
+            const p3 = (async () => {
+                await sleep(3500);
+                setNodeState('compliance', 'done', 'Done');
+                logTerminal('ComplianceAgent', 'Finished Compliance analysis.');
+                setPathState('path-comp-agg', 'done');
+            })();
+
+            await Promise.all([p1, p2, p3]);
+            
+            setPathState('path-router-tax', 'done');
+            setPathState('path-router-compliance', 'done');
+            setPathState('path-router-privacy', 'done');
+
+            // --- STEP 4: Aggregator ---
+            await sleep(800);
+            setNodeState('aggregate', 'active', 'Synthesizing...');
+            logTerminal('Aggregator', 'Combining 4 analyses into final report...');
+            await sleep(3000);
+            setNodeState('aggregate', 'done', 'Report Ready');
+            logTerminal('Aggregator', 'Final report generated successfully.');
+
+            // --- FINISH ---
+            await sleep(1000);
+            btn.disabled = false;
+            
+            const finalReport = `<strong>BÁO CÁO PHÁP LÝ TỔNG HỢP</strong><br><br>
+            <strong>1. Phân tích Chung:</strong> Việc rò rỉ dữ liệu và trốn thuế vi phạm nghiêm trọng luật hợp đồng và nghĩa vụ dân sự.<br>
+            <strong>2. Vấn đề Thuế (IRS):</strong> Rủi ro chịu án phạt hình sự và phạt 75% giá trị trốn thuế (IRC § 6663).<br>
+            <strong>3. Tuân thủ (SEC/SOX):</strong> Có thể bị SEC điều tra, phạt tiền lên tới hàng triệu đô la và cấm đảm nhiệm chức vụ.<br>
+            <strong>4. Quyền riêng tư (GDPR):</strong> Phạt lên tới 4% doanh thu toàn cầu hoặc 20 triệu Euro do bảo vệ dữ liệu yếu kém.`;
+            
+            addChatMessage(finalReport, false);
+            logTerminal('CustomerAgent', 'Response delivered to user.');
+        }
+    </script>
+</body>
+</html>

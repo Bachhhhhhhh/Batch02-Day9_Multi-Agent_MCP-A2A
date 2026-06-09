@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Optimization Demo: Sequential vs Parallel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            background-image: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15), transparent 50%);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p { color: var(--text-muted); font-size: 1.1rem; }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        .btn-start {
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -5px rgba(16, 185, 129, 0.7);
+        }
+        .btn-start:disabled {
+            background: #475569; box-shadow: none; cursor: not-allowed; transform: none;
+        }
+
+        .track-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .track {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .track-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .track-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .badge {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+        .badge.danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge.success { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+
+        .timer-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 15px var(--primary);
+        }
+        .timer-display.finished {
+            color: var(--success);
+            text-shadow: 0 0 15px var(--success);
+        }
+
+        /* Flow Visualization */
+        .flow-row {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            position: relative;
+        }
+        
+        .flow-parallel-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .node {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            min-width: 180px;
+            text-align: center;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .node .subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .arrow {
+            color: var(--border);
+            font-size: 1.5rem;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        /* Animation States */
+        .node.active {
+            border-color: var(--warning);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+            transform: scale(1.05);
+        }
+        .node.active::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            border-top-color: var(--warning);
+            animation: spin 1s linear infinite;
+        }
+        
+        .node.done {
+            border-color: var(--success);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .arrow.active {
+            color: var(--warning);
+            text-shadow: 0 0 10px var(--warning);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Latency Optimization Comparison</h1>
+        <p>Phân tích hiệu năng trước và sau khi tái cấu trúc đồ thị Multi-Agent</p>
+    </div>
+
+    <div class="controls">
+        <button class="btn-start" id="startBtn" onclick="runSimulation()">Start Demo</button>
+    </div>
+
+    <div class="track-container">
+        
+        <!-- Track 1: Original Architecture -->
+        <div class="track" id="track-before">
+            <div class="track-header">
+                <div class="track-title">
+                    Before: Sequential Flow <span class="badge danger">Bottleneck</span>
+                </div>
+                <div class="timer-display" id="timer-before">0.00s</div>
+            </div>
+            
+            <div class="flow-row">
+                <div class="node" id="b-q">Nhận câu hỏi</div>
+                <div class="arrow" id="ba-1">➔</div>
+                <div class="node" id="b-law">Law Agent<div class="subtitle">Phân tích luật chung</div></div>
+                <div class="arrow" id="ba-2">➔</div>
+                <div class="node" id="b-route">Router<div class="subtitle">Điều hướng</div></div>
+                <div class="arrow" id="ba-3">➔</div>
+                <div class="node" id="b-sub">Sub-Agents<div class="subtitle">Tax, Compliance...</div></div>
+                <div class="arrow" id="ba-4">➔</div>
+                <div class="node" id="b-agg">Aggregator<div class="subtitle">Tổng hợp báo cáo</div></div>
+            </div>
+        </div>
+
+        <!-- Track 2: Optimized Architecture -->
+        <div class="track" id="track-after">
+            <div class="track-header">
+                <div class="track-title">
+                    After: Parallel Flow <span class="badge success">Optimized</span>
+                </div>
+                <div class="timer-display" id="timer-after">0.00s</div>
+            </div>
+            
+            <div class="flow-row">
+                <div class="node" id="a-q">Nhận câu hỏi</div>
+                <div class="arrow" id="aa-1">➔</div>
+                <div class="node" id="a-route">Router<div class="subtitle">Khởi tạo Send()</div></div>
+                <div class="arrow" id="aa-2">➔</div>
+                
+                <!-- Parallel Block -->
+                <div class="flow-parallel-col">
+                    <div class="node" id="a-law" style="border-left: 4px solid var(--purple);">Law Agent<div class="subtitle">Phân tích song song</div></div>
+                    <div class="node" id="a-sub" style="border-left: 4px solid var(--primary);">Sub-Agents<div class="subtitle">Tra cứu song song</div></div>
+                </div>
+                
+                <div class="arrow" id="aa-3">➔</div>
+                <div class="node" id="a-agg">Aggregator<div class="subtitle">Tổng hợp báo cáo</div></div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // Simulation constraints (1 simulation second = 100ms real time for fast demoing)
+        // We will mock real timestamps:
+        // Law Agent takes ~20 seconds in real life
+        // Sub Agents take ~20 seconds
+        // Router / Agg takes ~3 seconds total
+        // Before Total: ~43s
+        // After Total: ~24s
+        
+        const SPEED_FACTOR = 10; // 1s visual = 10s simulated
+        
+        function setNode(id, state) {
+            document.getElementById(id).className = `node ${state}`;
+        }
+        function setArrow(id, state) {
+            document.getElementById(id).className = `arrow ${state}`;
+        }
+
+        function resetUI() {
+            document.querySelectorAll('.node').forEach(el => el.className = 'node');
+            document.querySelectorAll('.arrow').forEach(el => el.className = 'arrow');
+            document.getElementById('timer-before').innerText = '0.00s';
+            document.getElementById('timer-after').innerText = '0.00s';
+            document.getElementById('timer-before').className = 'timer-display';
+            document.getElementById('timer-after').className = 'timer-display';
+        }
+
+        function formatTime(ms) {
+            return (ms / 1000).toFixed(2) + 's';
+        }
+
+        async function runSimulation() {
+            document.getElementById('startBtn').disabled = true;
+            resetUI();
+            
+            // Shared timer state
+            let startTime = Date.now();
+            let isRunningBefore = true;
+            let isRunningAfter = true;
+            let simTimeBefore = 0;
+            let simTimeAfter = 0;
+
+            // Timer Updater
+            const interval = setInterval(() => {
+                const now = Date.now();
+                const visualElapsed = now - startTime;
+                
+                if (isRunningBefore) {
+                    simTimeBefore = visualElapsed * SPEED_FACTOR;
+                    document.getElementById('timer-before').innerText = formatTime(simTimeBefore);
+                }
+                if (isRunningAfter) {
+                    simTimeAfter = visualElapsed * SPEED_FACTOR;
+                    document.getElementById('timer-after').innerText = formatTime(simTimeAfter);
+                }
+                
+                if (!isRunningBefore && !isRunningAfter) clearInterval(interval);
+            }, 50);
+
+            const sleep = (simulatedMs) => new Promise(r => setTimeout(r, simulatedMs / SPEED_FACTOR));
+
+            // ------------- TRACK 1: BEFORE (Sequential) -------------
+            const runBefore = async () => {
+                setNode('b-q', 'done');
+                setArrow('ba-1', 'active');
+                
+                // Law Agent runs first
+                setNode('b-law', 'active');
+                await sleep(18500); // 18.5s
+                setNode('b-law', 'done');
+                setArrow('ba-1', ''); setArrow('ba-2', 'active');
+                
+                // Router
+                setNode('b-route', 'active');
+                await sleep(1000); // 1s
+                setNode('b-route', 'done');
+                setArrow('ba-2', ''); setArrow('ba-3', 'active');
+                
+                // Sub-Agents
+                setNode('b-sub', 'active');
+                await sleep(20500); // 20.5s
+                setNode('b-sub', 'done');
+                setArrow('ba-3', ''); setArrow('ba-4', 'active');
+                
+                // Aggregator
+                setNode('b-agg', 'active');
+                await sleep(2940); // 2.94s
+                setNode('b-agg', 'done');
+                setArrow('ba-4', '');
+                
+                isRunningBefore = false;
+                document.getElementById('timer-before').innerText = '42.94s';
+                document.getElementById('timer-before').className = 'timer-display finished';
+            };
+
+            // ------------- TRACK 2: AFTER (Parallel) -------------
+            const runAfter = async () => {
+                setNode('a-q', 'done');
+                setArrow('aa-1', 'active');
+                
+                // Router instantly routes
+                setNode('a-route', 'active');
+                await sleep(1000); // 1s
+                setNode('a-route', 'done');
+                setArrow('aa-1', ''); setArrow('aa-2', 'active');
+                
+                // Parallel Execution: Law Agent & Sub Agents SIMULTANEOUSLY
+                setNode('a-law', 'active');
+                setNode('a-sub', 'active');
+                
+                // They resolve independently
+                const lawTask = async () => {
+                    await sleep(18500); // 18.5s
+                    setNode('a-law', 'done');
+                };
+                const subTask = async () => {
+                    await sleep(20500); // 20.5s
+                    setNode('a-sub', 'done');
+                };
+                
+                await Promise.all([lawTask(), subTask()]);
+                
+                setArrow('aa-2', ''); setArrow('aa-3', 'active');
+                
+                // Aggregator
+                setNode('a-agg', 'active');
+                await sleep(2200); // 2.2s (slightly faster due to pre-warm maybe, let's say 2.2s)
+                setNode('a-agg', 'done');
+                setArrow('aa-3', '');
+                
+                isRunningAfter = false;
+                document.getElementById('timer-after').innerText = '23.70s';
+                document.getElementById('timer-after').className = 'timer-display finished';
+            };
+
+            // Start Race
+            await Promise.all([runBefore(), runAfter()]);
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').innerText = "Run Again";
+        }
+    </script>
+</body>
+</html>

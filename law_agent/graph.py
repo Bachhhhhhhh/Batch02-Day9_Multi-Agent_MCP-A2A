@@ -122,13 +122,12 @@ def route_to_subagents(state: LawState) -> list[Send]:
     Send objects which LangGraph executes as parallel branches.
     """
     sends: list[Send] = []
+    # Always analyze law in parallel with sub-agents to reduce latency
+    sends.append(Send("analyze_law", state))
     if state.get("needs_tax"):
         sends.append(Send("call_tax", state))
     if state.get("needs_compliance"):
         sends.append(Send("call_compliance", state))
-    if not sends:
-        # No sub-agents needed — go straight to aggregation
-        sends.append(Send("aggregate", state))
     return sends
 
 
@@ -218,16 +217,17 @@ def create_graph():
     graph.add_node("call_compliance", call_compliance)
     graph.add_node("aggregate", aggregate)
 
-    graph.set_entry_point("analyze_law")
-    graph.add_edge("analyze_law", "check_routing")
+    graph.set_entry_point("check_routing")
 
     # Conditional parallel dispatch: after check_routing, route_to_subagents
-    # returns a list of Send objects (to call_tax, call_compliance, or aggregate)
+    # returns a list of Send objects (to analyze_law, call_tax, call_compliance)
     graph.add_conditional_edges(
         "check_routing",
         route_to_subagents,
-        ["call_tax", "call_compliance", "aggregate"],
+        ["analyze_law", "call_tax", "call_compliance"],
     )
+
+    graph.add_edge("analyze_law", "aggregate")
 
     graph.add_edge("call_tax", "aggregate")
     graph.add_edge("call_compliance", "aggregate")
